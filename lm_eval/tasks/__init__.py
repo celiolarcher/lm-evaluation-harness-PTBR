@@ -341,6 +341,7 @@ TASK_REGISTRY = {
     "faquad": faquad.FaQuAD,
     "boolq_pt": superglue_pt.BoolQ,
     "assin2_rte": assin2.Assin2RTE,
+    "assin2_sts": assin2.Assin2STS,
 
     # Requires manual download
     # Requires manual download of data.

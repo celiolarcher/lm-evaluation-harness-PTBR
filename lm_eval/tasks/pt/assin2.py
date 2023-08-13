@@ -24,6 +24,7 @@ import numpy as np
 from lm_eval.metrics import mean
 from lm_eval import utils
 from collections import defaultdict
+import math
 
 # TODO: Add the BibTeX citation for the task.
 _CITATION = """
@@ -184,45 +185,25 @@ class Assin2Base(Task):
         example = self.doc_to_text(doc)
         return description + labeled_examples + example
     
-    # def fewshot_examples(self, k, rnd):
-    #     if self._training_docs is None:
-    #         self._training_docs = list(self.training_docs())
-    #     return rnd.sample(self._training_docs, k)
-
-    # def fewshot_examples_balanced_by_key(self, k, rnd, keyfunc=None):
-    #     """Essa aqui precisa dar um jeito de passar a key"""
-    #     if self._training_docs is None:
-    #         self._training_docs = list(self.training_docs())
-    #     # default behavior
-    #     if keyfunc is None:
-    #         return rnd.sample(self._training_docs, k)
-    #     # otherwise, group by keyfunc and sample from each group
-    #     groups = defaultdict(list)
-    #     for doc in self._training_docs:
-    #         groups[keyfunc(doc)].append(doc)
-    #     n_groups = len(groups)
-    #     examples_per_group = int(k / n_groups)
-    #     out = [rnd.sample(x, examples_per_group) for x in groups.values()]
-    #     out = rnd.sample(out, k)
-    #     return out
-    
-    def fewshot_examples_balanced_by_key(self, k, rnd, keyfunc=None):
+    def fewshot_examples(self, k, rnd):
         """Essa aqui precisa dar um jeito de passar a key"""
         if self._training_docs is None:
             self._training_docs = list(self.training_docs())
         
         # check if we have a key to balance by
         # if not just return a random sample (default behavior)
-        if "__fewshot_balance_key__" not in self._training_docs:
+        if "__fewshot_balance_key__" not in self._training_docs[0]:
             return rnd.sample(self._training_docs, k)
         
         # otherwise, group by keyfunc and sample from each group
         groups = defaultdict(list)
         for doc in self._training_docs:
-            groups[keyfunc(doc)].append(doc)
+            groups[doc['__fewshot_balance_key__']].append(doc)
         n_groups = len(groups)
-        examples_per_group = int(k / n_groups)
-        out = [rnd.sample(x, examples_per_group) for x in groups.values()]
+        examples_per_group = math.ceil(k / n_groups)
+        out = [
+            item for group in groups.values()
+            for item in rnd.sample(group, examples_per_group)]
         out = rnd.sample(out, k)
         return out
 
@@ -239,6 +220,7 @@ class Assin2RTE(Assin2Base):
         # CLASS_LABELS = ["None", "Entailment"]
         CLASS_LABELS = ["Sim", "Não"]
         doc['label_name'] = CLASS_LABELS[doc["entailment_judgment"]]
+        doc['__fewshot_balance_key__'] = doc['label_name']
         return doc
 
     def doc_to_text(self, doc, n_example_fewshot=None):
