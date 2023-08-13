@@ -108,9 +108,14 @@ class Assin2RTE(Task):
         #     f"Resposta:"
         # ])
     
+        # return "\n".join([
+        #     "###",
+        #     f"Sabendo que '{doc['premise']}' é verdadeiro, podemos dizer que '{doc['hypothesis']}' é verdadeiro? Sim ou não",
+        #     f"Resposta:"
+        # ])
         return "\n".join([
             "###",
-            f"Sabendo que '{doc['premise']}' é verdadeiro, podemos dizer que '{doc['hypothesis']}' é verdadeiro? Sim ou não",
+            f"Sabendo que '{doc['premise']}', podemos dizer que '{doc['hypothesis']}'? Sim ou não?",
             f"Resposta:"
         ])
 
