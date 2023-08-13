@@ -67,6 +67,7 @@ from . import csatqa
 from . import haerae
 
 
+from .pt import assin2
 from .pt import faquad
 from .pt import superglue_pt
 
@@ -339,6 +340,7 @@ TASK_REGISTRY = {
 
     "faquad": faquad.FaQuAD,
     "boolq_pt": superglue_pt.BoolQ,
+    "assin2_rte": assin2.Assin2RTE,
 
     # Requires manual download
     # Requires manual download of data.
