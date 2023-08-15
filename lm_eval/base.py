@@ -1,5 +1,6 @@
 import abc
 from typing import Iterable
+import math
 import numpy as np
 import random
 import re
@@ -13,6 +14,7 @@ import torch
 import torch.nn.functional as F
 from accelerate import find_executable_batch_size
 
+from collections import defaultdict
 from lm_eval.metrics import mean, weighted_perplexity, weighted_mean, bits_per_byte
 from lm_eval import utils
 from abc import abstractmethod
@@ -991,3 +993,113 @@ class RequestFactory:
 
 
 rf = RequestFactory()
+
+class TaskV2(Task):
+    """Task class with some modifications to the original one.
+
+    Modifications:
+    - `few_show_examples` method allow to select the same number of examples
+    for each label. This avoids bias towards the majority class. To do so,
+    add the key used for balanced sampling on `__fewshot_balance_key__` using
+    the _process_doc method. This will be applied only to the training set.
+    - `fewshot_context` method modified to also pass index of the each few shot
+    example (to be used in the prompt) and an indicator if the doc is a few shot
+    or a text document.
+    - 
+
+    
+    """
+
+    @utils.positional_deprecated
+    def fewshot_context(
+        self, doc, num_fewshot, provide_description=None, rnd=None, description=None
+    ):
+        """Returns a fewshot context string that is made up of a prepended description
+        (if provided), the `num_fewshot` number of examples, and an appended prompt example.
+
+        :param doc: str
+            The document as returned from training_docs, validation_docs, or test_docs.
+        :param num_fewshot: int
+            The number of fewshot examples to provide in the returned context string.
+        :param provide_description: bool
+            Not implemented, and this option is deprecated and will be removed in a future version in favor of a different description providing method
+        :param rnd: random.Random
+            The pseudo-random number generator used to randomly sample examples.
+            WARNING: This is currently a required arg although it's optionalized with a default `None`.
+        :param description: str
+            The task's description that will be prepended to the fewshot examples.
+        :returns: str
+            The fewshot context.
+        """
+        assert (
+            rnd is not None
+        ), "A `random.Random` generator argument must be provided to `rnd`"
+        assert not provide_description, (
+            "The `provide_description` arg will be removed in future versions. To prepend "
+            "a custom description to the context, supply the corresponding string via the "
+            "`description` arg."
+        )
+        if provide_description is not None:
+            # nudge people to not specify it at all
+            print(
+                "WARNING: provide_description is deprecated and will be removed in a future version in favor of description_dict"
+            )
+
+        description = description + "\n\n" if description else ""
+
+        if num_fewshot == 0:
+            labeled_examples = ""
+        else:
+            # for sets with no training docs, draw from other set *but ensure no overlap with current doc*
+            if self.has_training_docs():
+                fewshotex = self.fewshot_examples(k=num_fewshot, rnd=rnd)
+            else:
+                # raise NotImplementedError(
+                #     "Assin2 has training docs, so this should never happen")
+                if self._fewshot_docs is None:
+                    self._fewshot_docs = list(
+                        self.validation_docs()
+                        if self.has_validation_docs()
+                        else self.test_docs()
+                    )
+
+                fewshotex = rnd.sample(self._fewshot_docs, num_fewshot + 1)
+
+                # get rid of the doc that's the one we're evaluating, if it's in the fewshot
+                fewshotex = [x for x in fewshotex if x != doc][:num_fewshot]
+
+            labeled_examples = (
+                "\n\n".join(
+                    [
+                        self.doc_to_text(doc, n_example_fewshot=n) + self.doc_to_target(doc)
+                        for n, doc in enumerate(fewshotex, 1)
+                    ]
+                )
+                + "\n\n"
+            )
+
+        example = self.doc_to_text(doc)
+        return description + labeled_examples + example
+    
+    def fewshot_examples(self, k, rnd):
+        """Returns `k` examples from the training set, balancing by the key
+        `__fewshot_balance_key__` if present."""
+        if self._training_docs is None:
+            self._training_docs = list(self.training_docs())
+        
+        # check if we have a key to balance by
+        # if not just return a random sample (default behavior)
+        if "__fewshot_balance_key__" not in self._training_docs[0]:
+            return rnd.sample(self._training_docs, k)
+        
+        # otherwise, group by keyfunc and sample from each group
+        groups = defaultdict(list)
+        for doc in self._training_docs:
+            groups[doc['__fewshot_balance_key__']].append(doc)
+        n_groups = len(groups)
+        examples_per_group = math.ceil(k / n_groups)
+        out = [
+            item for group in groups.values()
+            for item in rnd.sample(group, examples_per_group)]
+        out = rnd.sample(out, k)
+        return out
