@@ -1,6 +1,7 @@
 import numpy as np
 from lm_eval.base import rf, Task
-from lm_eval.metrics import mean
+from lm_eval.metrics import mean, f1_score
+from functools import partial
 
 
 class TweetSentBR(Task):
@@ -51,10 +52,14 @@ class TweetSentBR(Task):
     def process_results(self, doc, results):
         gold = doc["label"]
         pred = np.argmax(results)
-        return {"acc": pred == gold}
+        return {"acc": pred == gold,
+                "f1_macro": (gold, pred)}
 
     def aggregation(self):
-        return {"acc": mean}
+        return {"acc": mean, 
+                "f1_macro": partial(
+                    f1_score, average="macro")
+                }
 
     def higher_is_better(self):
-        return {"acc": True}
+        return {"acc": True, "f1_macro": True}
