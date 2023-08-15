@@ -141,12 +141,23 @@ class Assin2RTE(Assin2Base):
         #     f"Resposta:"
         # ])
     
+        # Prompt Ramon
         # return "\n".join([
         #     "###",
         #     f"Sabendo que '{doc['premise']}' é verdadeiro, podemos dizer que '{doc['hypothesis']}' é verdadeiro? Sim ou não",
         #     f"Resposta:"
         # ])
         ex_index = f"Exemplo {n_example_fewshot}:" if n_example_fewshot else ""
+        return "\n".join([
+            f"###\n{ex_index}",
+            f"Premissa: {doc['premise']}",
+            f"Hipótese: {doc['hypothesis']}",
+            f"Acarretamento:"
+            # f"[A]: {doc['premise']}",
+            # f"[B]: {doc['hypothesis']}",
+            # f"Resposta:"
+        ])
+        # Não fica bom
         return "\n".join([
             f"###\n{ex_index}",
             f"Sabendo que '{doc['premise']}', podemos dizer que '{doc['hypothesis']}'? Sim ou não?",
