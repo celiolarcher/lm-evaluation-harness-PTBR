@@ -1078,7 +1078,7 @@ class TaskV2(Task):
                 + "\n\n"
             )
 
-        example = self.doc_to_text(doc)
+        example = self.doc_to_text(doc, n_example_fewshot=len(fewshotex) + 1)
         return description + labeled_examples + example
     
     def fewshot_examples(self, k, rnd):
