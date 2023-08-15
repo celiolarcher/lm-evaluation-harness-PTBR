@@ -229,7 +229,7 @@ class Assin2RTE(Assin2Base):
         return {"macro_f1": True, "accuracy": True}
 
 class Assin2STS(Assin2Base):
-    VERSION = "balanced_log_likelihood"
+    VERSION = "balanced_log_likelihood_remove_low_confidence"
     # class names used only for training
     CLASS_NAMES = ["1", "2", "3", "4", "5"]
 
