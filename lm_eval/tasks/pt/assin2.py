@@ -116,7 +116,7 @@ class Assin2Base(TaskV2):
 
 class Assin2RTE(Assin2Base):
     VERSION = "balanced_log_likelihood"
-    CLASS_NAMES = ["Sim", "Não"]
+    CLASS_NAMES = ["Não", "Sim"]
 
     def _process_doc(self, doc):
         # TODO: Process (detokenize, strip, replace etc.) each individual `doc`
