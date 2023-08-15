@@ -50,10 +50,10 @@ def compute_person(items):
     person = pearsonr(trues, preds)[0]
     return person
 
-def compute_mse(items):
-    trues, preds = items_to_trues_and_preds(items)
-    mse = ((trues - preds) ** 2).mean()
-    return mse
+# def compute_mse(items):
+#     trues, preds = items_to_trues_and_preds(items)
+#     mse = ((trues - preds) ** 2).mean()
+#     return mse
 
 
 def string_to_float(x):
@@ -229,37 +229,48 @@ class Assin2RTE(Assin2Base):
         return {"macro_f1": True, "accuracy": True}
 
 class Assin2STS(Assin2Base):
-    VERSION = 0
+    VERSION = "balanced_log_likelihood"
+    # class names used only for training
+    CLASS_NAMES = ["1", "2", "3", "4", "5"]
+
+    def _remove_low_confidence(self, row):
+        """Remove low confidence examples from training set."""
+        # keep only integer similarity
+        keep = row["relatedness_score"].is_integer()
+        if not keep:
+            return keep
+        # remove examples with high score but no entailment
+        if row["relatedness_score"] >= 4 and row["entailment_judgment"] == 1:
+            return True
+        # remove examples with low score but entailment
+        if row["relatedness_score"] <= 2 and row["entailment_judgment"] == 0:
+            return True
+        # keep examples with score 3
+        return row["relatedness_score"] == 3
 
     def training_docs(self):
         if self.has_training_docs():
             if self._training_docs is None:
                 # this will be called just once
                 train_ds_filter = self.dataset["train"].filter(
-                    lambda x: x["relatedness_score"] in [1,2,3,4,5])
+                    self._remove_low_confidence)
                 train_ds_filter = train_ds_filter.map(self._process_doc)
                 self._training_docs = list(train_ds_filter)
             return self._training_docs
 
-    def validation_docs(self):
-        if self.has_validation_docs():
-            return self.dataset["validation"]
-
-    def test_docs(self):
-        if self.has_test_docs():
-            self.dataset["test"]
-
-    def doc_to_text(self, doc):
+    def doc_to_text(self, doc, n_example_fewshot=None):
+        ex_index = f"Exemplo {n_example_fewshot}:" if n_example_fewshot else ""
         return "\n".join([
-            "###",
+            f"###\n{ex_index}",
             f"Sentença 1: {doc['premise']}",
-            f"Sentença 2: {doc['hypothesis']}"
+            f"Sentença 2: {doc['hypothesis']}",
             f"Similaridade:"
         ])
     
     def _process_doc(self, doc):
         # will be called only for training docs
-        doc["__fewshot_balance_key__"] = str(int(doc["relatedness_score"]))
+        doc["relatedness_score_integer"] = str(int(doc["relatedness_score"]))
+        doc["__fewshot_balance_key__"] = doc["relatedness_score_integer"]
         return doc
 
 
@@ -268,7 +279,7 @@ class Assin2STS(Assin2Base):
         # The prepended `" "` is required to space out the `doc_to_text` and
         # `doc_to_target` strings.
         # this is only used for few show documents (train)
-        target = str(int(doc["relatedness_score"]))
+        target = doc["relatedness_score_integer"]
         return " " + target
 
     def construct_requests(self, doc, ctx):
@@ -283,10 +294,11 @@ class Assin2STS(Assin2Base):
             language description, as well as the few shot examples, and the question
             part of the document for `doc`.
         """
-        # TODO: Construct your language model requests with the request factory, `rf`,
-        # and return them as an iterable.
-        continuation = rf.greedy_until(ctx, {"until": ["\n", " "]})
-        return continuation
+        lls = [
+            rf.loglikelihood(ctx, " {}".format(choice))[0]
+            for choice in self.CLASS_NAMES
+        ]
+        return lls
 
     def process_results(self, doc, results):
         """Take a single document and the LM results and evaluates, returning a
@@ -301,9 +313,11 @@ class Assin2STS(Assin2Base):
         # TODO: For each (sub)metric in the task evaluation, add a key-value pair
         # with the metric name as key and the corresponding metric result as value
         # for the current `doc`.
+        # true is a float
         true = doc["relatedness_score"]
-        pred = string_to_float(results[0])
-        return {"pearson": (true, pred), "mse": (true, pred)}
+        # pred is a string converted to float
+        pred = string_to_float(np.argmax(results))
+        return {"pearson": (true, pred), "mse": (true - pred) ** 2}
 
     def aggregation(self):
         """
@@ -315,7 +329,7 @@ class Assin2STS(Assin2Base):
         # with the metric name as key and an aggregation function as value which
         # determines how to combine results from each document in the dataset.
         # Check `lm_eval.metrics` to find built-in aggregation functions.
-        return {"pearson": compute_person, "mse": compute_mse}
+        return {"pearson": compute_person, "mse": mean}
 
     def higher_is_better(self):
         # TODO: For each (sub)metric in the task evaluation, add a key-value pair
