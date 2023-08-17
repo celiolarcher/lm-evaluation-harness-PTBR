@@ -49,8 +49,8 @@ class ZeroShot_PT(Task):
             + doc["hypothesis"]
             + "\n\n"
             + "Nota:"
+            + "\n\n"
         )
-
 
     def should_decontaminate(self):
         return True
@@ -59,7 +59,7 @@ class ZeroShot_PT(Task):
         return doc["premise"]
 
     def doc_to_target(self, doc):
-        return doc["nota"] 
+        return str(doc["nota"])
 
     def construct_requests(self, doc, ctx):
         """Uses RequestFactory to construct Requests and returns an iterable of
