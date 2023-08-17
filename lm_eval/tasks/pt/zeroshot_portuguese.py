@@ -59,7 +59,7 @@ class ZeroShot_PT(Task):
         return doc["premise"]
 
     def doc_to_target(self, doc):
-        return str(doc["nota"])
+        return "{:.0f}".format(doc['nota'])
 
     def construct_requests(self, doc, ctx):
         """Uses RequestFactory to construct Requests and returns an iterable of
