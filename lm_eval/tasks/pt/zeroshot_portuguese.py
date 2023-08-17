@@ -18,7 +18,7 @@ def _squad_agg(key, items):
     return _squad_metric(predictions=predictions, references=references).get(key, 0)
 
 
-class zeroshot_portuguese(Task):
+class ZeroShot_PT(Task):
     VERSION = 1
     DATASET_PATH = "mmt93/zeroshot_portuguese"
     DATASET_NAME = None

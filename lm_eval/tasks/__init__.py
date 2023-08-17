@@ -69,6 +69,7 @@ from . import haerae
 
 from .pt import faquad
 from .pt import superglue_pt
+from .pt import zeroshot_portuguese
 
 ########################################
 # Translation tasks
@@ -339,7 +340,7 @@ TASK_REGISTRY = {
 
     "faquad": faquad.FaQuAD,
     "boolq_pt": superglue_pt.BoolQ,
-
+    "zeroshot_pt" : zeroshot_portuguese.ZeroShot_PT,
     # Requires manual download
     # Requires manual download of data.
     # "storycloze_2016": storycloze.StoryCloze2016,
